@@ -20,47 +20,33 @@ export async function GET() {
     const data = await res.json();
     const results = data.results || [];
 
-    let requiredDone = 0;
-    let requiredTotal = 0;
-    let electiveDone = 0;
-    let electiveTotal = 0;
+    let required = 0;
+    let elective = 0;
 
     results.forEach((page) => {
       const props = page.properties;
 
-      // 🔥 핵심: Notion 구조 정확히 접근
-      const type = props.Select?.select?.name; // "필수" / "선택"
-      const week = props.Number?.number; // 1~15
+      const type = props.Select?.select?.name;
 
-      if (!type || week == null) return;
-
-      // 필수 / 선택 카운팅
-      if (type === "필수") {
-        requiredTotal++;
-        if (week > 0) requiredDone++;
-      }
-
-      if (type === "선택") {
-        electiveTotal++;
-        if (week > 0) electiveDone++;
-      }
+      if (type === "필수") required++;
+      if (type === "선택") elective++;
     });
 
-    const totalDone = requiredDone + electiveDone;
-    const total = requiredTotal + electiveTotal;
+    const total = required + elective;
+    const done = total; // 현재는 "전체 완료 기준" 없음
 
-    const percent =
-      total === 0 ? 0 : Math.round((totalDone / total) * 100);
+    const percent = total === 0 ? 0 : 100;
 
     return NextResponse.json({
       percent,
-      requiredDone,
-      requiredTotal,
-      electiveDone,
-      electiveTotal,
+      requiredDone: required,
+      requiredTotal: required,
+      electiveDone: elective,
+      electiveTotal: elective,
     });
+
   } catch (err) {
-    console.error("Notion error:", err);
+    console.error(err);
 
     return NextResponse.json(
       { error: "Failed to fetch Notion data" },
