@@ -3,6 +3,10 @@ import { NextResponse } from "next/server";
 const NOTION_API_KEY = process.env.NOTION_API_KEY;
 const DATABASE_ID = process.env.NOTION_DATABASE_ID;
 
+const TOTAL_SUBJECTS = 17;
+const TOTAL_WEEKS = 15;
+const TOTAL_CELLS = TOTAL_SUBJECTS * TOTAL_WEEKS; // 255
+
 export async function GET() {
   try {
     const res = await fetch(
@@ -20,64 +24,46 @@ export async function GET() {
     const data = await res.json();
     const results = data.results || [];
 
-    // 📌 과목별 상태 저장
-    const subjects = {};
+    let totalProgress = 0;
+
+    let requiredDone = new Set();
+    let electiveDone = new Set();
 
     results.forEach((page) => {
       const props = page.properties;
 
       const name = props.Name?.title?.[0]?.plain_text;
-      const type = props.Select?.select?.name;
+      const type = props.Select?.select?.name; // 필수 / 선택
       const week = props.Number?.number;
 
       if (!name || !type || week == null) return;
 
-      // 과목 하나로 묶기
-      if (!subjects[name]) {
-        subjects[name] = {
-          type,
-          maxWeek: 0,
-        };
-      }
+      // 📌 핵심: 1~15 모두 "진행량"으로 누적
+      totalProgress += week;
 
-      // 가장 큰 week 저장
-      if (week > subjects[name].maxWeek) {
-        subjects[name].maxWeek = week;
+      // 📌 완료 기준
+      if (week === 15) {
+        if (type === "필수") requiredDone.add(name);
+        if (type === "선택") electiveDone.add(name);
       }
     });
 
-    let requiredDone = 0;
-    let electiveDone = 0;
-
-    Object.values(subjects).forEach((subj) => {
-      const isDone = subj.maxWeek === 15;
-
-      if (subj.type === "필수") {
-        if (isDone) requiredDone++;
-      }
-
-      if (subj.type === "선택") {
-        if (isDone) electiveDone++;
-      }
-    });
-
-    const totalSubjects = Object.keys(subjects).length;
-
+    // 📌 전체 퍼센트 (255칸 기준)
     const percent =
-      totalSubjects === 0
+      TOTAL_CELLS === 0
         ? 0
-        : Math.round((totalSubjects / 17) * 100);
+        : Math.round((totalProgress / TOTAL_CELLS) * 100);
 
     return NextResponse.json({
       percent,
 
-      requiredDone,
+      // 완료 과목 수
+      requiredDone: requiredDone.size,
       requiredTotal: 10,
 
-      electiveDone,
+      electiveDone: electiveDone.size,
       electiveTotal: 7,
     });
-
   } catch (err) {
     console.error(err);
 
