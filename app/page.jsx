@@ -13,7 +13,7 @@ export default function Page() {
         const json = await res.json();
         setData(json);
       } catch (err) {
-        console.error("API fetch error:", err);
+        console.error(err);
       }
     }
 
