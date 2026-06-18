@@ -4,13 +4,17 @@ import { useEffect, useState } from "react";
 import styles from "./styles.module.css";
 
 export default function Page() {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState(null);
 
   useEffect(() => {
     async function load() {
-      const res = await fetch("/api/progress");
-      const json = await res.json();
-      setData(json);
+      try {
+        const res = await fetch("/api/progress");
+        const json = await res.json();
+        setData(json);
+      } catch (err) {
+        console.error("API fetch error:", err);
+      }
     }
 
     load();
