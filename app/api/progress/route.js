@@ -3,6 +3,9 @@ import { NextResponse } from "next/server";
 const NOTION_API_KEY = process.env.NOTION_API_KEY;
 const DATABASE_ID = process.env.NOTION_DATABASE_ID;
 
+const TOTAL_WEEKS = 15;
+const TOTAL_SUBJECTS = 17;
+
 export async function GET() {
   try {
     const res = await fetch(
@@ -18,56 +21,53 @@ export async function GET() {
     );
 
     const data = await res.json();
-
-    // 🔥 핵심 디버그 (이거 꼭 로그에 찍힘)
-    console.log("NOTION RESPONSE:", JSON.stringify(data, null, 2));
-
     const results = data.results || [];
 
-    let requiredDone = 0;
-    let requiredTotal = 0;
-    let electiveDone = 0;
-    let electiveTotal = 0;
+    // 📌 필수 / 선택 과목 리스트
+    let requiredSubjects = new Set();
+    let electiveSubjects = new Set();
+
+    // 📌 진행된 주차 (전체 기준)
+    let completedWeeks = 0;
 
     results.forEach((page) => {
       const props = page.properties;
 
-      // 🔥 실제 Notion 구조 확인용 로그
-      console.log("PAGE PROPS:", props);
-
       const type = props.Select?.select?.name; // 필수 / 선택
       const week = props.Number?.number; // 1~15
+      const name = props.Name?.title?.[0]?.plain_text;
 
-      console.log("PARSED:", { type, week });
-
-      // 데이터 없으면 스킵
       if (!type || week == null) return;
 
-      if (type === "필수") {
-        requiredTotal++;
-        requiredDone++;
-      }
+      // 과목 분류
+      if (type === "필수") requiredSubjects.add(name);
+      if (type === "선택") electiveSubjects.add(name);
 
-      if (type === "선택") {
-        electiveTotal++;
-        electiveDone++;
-      }
+      // 주차 진행 = 완료된 것으로 계산
+      if (week > 0) completedWeeks++;
     });
 
-    const total = requiredTotal + electiveTotal;
-    const done = requiredDone + electiveDone;
+    // 📌 기준값
+    const totalCells = TOTAL_SUBJECTS * TOTAL_WEEKS;
 
-    const percent = total === 0 ? 0 : Math.round((done / total) * 100);
+    const percent =
+      totalCells === 0
+        ? 0
+        : Math.round((completedWeeks / totalCells) * 100);
 
     return NextResponse.json({
       percent,
-      requiredDone,
-      requiredTotal,
-      electiveDone,
-      electiveTotal,
+
+      // 필수 / 선택 과목 개수
+      requiredTotal: 10,
+      electiveTotal: 7,
+
+      requiredDone: requiredSubjects.size,
+      electiveDone: electiveSubjects.size,
     });
+
   } catch (err) {
-    console.error("NOTION ERROR:", err);
+    console.error(err);
 
     return NextResponse.json(
       { error: "Notion fetch failed" },
