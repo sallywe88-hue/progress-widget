@@ -6,50 +6,65 @@ const NOTION_API_KEY = process.env.NOTION_API_KEY;
 const DATABASE_ID = process.env.NOTION_DATABASE_ID;
 
 export async function GET() {
-  const res = await fetch(
-    `https://api.notion.com/v1/databases/${DATABASE_ID}/query`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${NOTION_API_KEY}`,
-        "Notion-Version": "2022-06-28",
-        "Content-Type": "application/json",
-      },
-    }
-  );
+  try {
+    const res = await fetch(
+      `https://api.notion.com/v1/databases/${DATABASE_ID}/query`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${NOTION_API_KEY}`,
+          "Notion-Version": "2022-06-28",
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+      }
+    );
 
-  const data = await res.json();
+    const data = await res.json();
+    const results = data.results || [];
 
-  let totalProgress = 0;
+    let requiredDone = 0;
+    let requiredTotal = 0;
+    let electiveDone = 0;
+    let electiveTotal = 0;
 
-  let requiredDone = new Set();
-  let electiveDone = new Set();
+    results.forEach((page) => {
+      const props = page.properties;
 
-  data.results.forEach((page) => {
-    const props = page.properties;
+      const type = props.Select?.select?.name;
+      const week = props.Number?.number;
 
-    const name = props.Name?.title?.[0]?.plain_text;
-    const type = props.Select?.select?.name;
-    const week = props.Number?.number;
+      if (!type || week == null) return;
 
-    if (!name || !type || week == null) return;
+      if (type === "필수") {
+        requiredTotal++;
+        if (week === 15) requiredDone++;
+      }
 
-    totalProgress += week;
+      if (type === "선택") {
+        electiveTotal++;
+        if (week === 15) electiveDone++;
+      }
+    });
 
-    if (week === 15) {
-      if (type === "필수") requiredDone.add(name);
-      if (type === "선택") electiveDone.add(name);
-    }
-  });
+    const totalDone = requiredDone + electiveDone;
+    const total = requiredTotal + electiveTotal;
 
-  const percent = Math.round((totalProgress / (17 * 15)) * 100);
+    const percent =
+      total === 0 ? 0 : Math.round((totalDone / total) * 100);
 
-  return NextResponse.json({
-    percent,
-    requiredDone: requiredDone.size,
-    requiredTotal: 10,
-    electiveDone: electiveDone.size,
-    electiveTotal: 7,
-  });
+    return NextResponse.json({
+      percent,
+      requiredDone,
+      requiredTotal,
+      electiveDone,
+      electiveTotal,
+    });
+  } catch (err) {
+    return NextResponse.json(
+      { error: "Notion fetch failed" },
+      { status: 500 }
+    );
+  }
 }
   
