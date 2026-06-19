@@ -24,34 +24,40 @@ export async function GET() {
     const results = data.results || [];
 
     let requiredDone = 0;
-    let requiredTotal = 0;
+    let requiredTotal = 10;
+
     let electiveDone = 0;
-    let electiveTotal = 0;
+    let electiveTotal = 7;
+
+    let totalProgress = 0;
 
     results.forEach((page) => {
       const props = page.properties;
 
-      const type = props.Select?.select?.name;
-      const week = props.Number?.number;
+      const type = props.Select?.select?.name; // 필수 / 선택
+      const week = props.Number?.number ?? 0;   // 1~15
 
-      if (!type || week == null) return;
+      if (!type) return;
 
+      // 🔥 전체 진행률 핵심
+      totalProgress += week;
+
+      // 필수 / 선택 완료 카운트 (15일 때만 완료)
       if (type === "필수") {
-        requiredTotal++;
         if (week === 15) requiredDone++;
       }
 
       if (type === "선택") {
-        electiveTotal++;
         if (week === 15) electiveDone++;
       }
     });
 
-    const totalDone = requiredDone + electiveDone;
-    const total = requiredTotal + electiveTotal;
+    const maxTotal = (requiredTotal + electiveTotal) * 15;
 
     const percent =
-      total === 0 ? 0 : Math.round((totalDone / total) * 100);
+      maxTotal === 0
+        ? 0
+        : Math.round((totalProgress / maxTotal) * 100);
 
     return NextResponse.json({
       percent,
@@ -67,4 +73,3 @@ export async function GET() {
     );
   }
 }
-  
