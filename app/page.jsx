@@ -9,7 +9,10 @@ export default function Page() {
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch("/api/progress");
+        const res = await fetch("/api/progress", {
+          cache: "no-store",
+        });
+
         const json = await res.json();
         setData(json);
       } catch (err) {
@@ -43,4 +46,5 @@ export default function Page() {
       </div>
     </div>
   );
+}
 }
